@@ -22,7 +22,7 @@ class REP():
     def find_type(self):
         '''
         '''
-        dic_type = {'pdf':'§§','mp4':'%%','txt':',,'}
+        dic_type = {'pdf':'§§','mp4':'%%','mp3':'%%','txt':',,'}
         self.type = dic_type[self.name[-3:]]
         #print("self.type ",self.type)
 
@@ -33,6 +33,24 @@ class REP():
         lrep = ['(',')','[',']']
         for sgn in lrep:
             self.name = self.name.replace(sgn,' ')
+        return self
+
+    def rm_acc(self):
+        '''
+        Remove accents
+        '''
+        drep = {'à':'a','é':'e','è':'e','É':'E', 'È':'E', 'ô':'o'}
+        for l in drep:
+            self.name = self.name.replace(l,drep[l])
+        return self
+
+    def rm_perc(self):
+        '''
+        Remove percent
+        '''
+        drep = {'%26':''}
+        for l in drep:
+            self.name = self.name.replace(l,drep[l])
         return self
 
     def rep_blk(self):
@@ -116,18 +134,21 @@ def rep():
     '''
 
     #print('args is {} '.format(args))
-    lext = ['mp4','pdf','jpg','txt']
-    dic_prefix = {'pdf':'$pdf','mp4':'$vid'}
-    dic_score = {'mp4':0,'pdf':0,'jpg':0,'txt':0}
+    lext = ['mp3','mp4','pdf','jpg','txt'] # authorized extensions 
+    dic_prefix = {'pdf':'$pdf','mp4':'$vid','mp3':'$vid'}
+    dic_score = {'mp3':0,'mp4':0,'pdf':0,'jpg':0,'txt':0}
     for ext in lext:
       for f in glob.glob('*.' + ext):
         print(f)
         dic_score[ext] += 1
-        r = REP(f).rm_brk().rep_blk().rep_dbpts().mv() # remove brackets, replace blanks, replace double points, change name..
+        r = REP(f).rm_brk().rm_acc().rm_perc().rep_blk().rep_dbpts().mv() # remove brackets, remove accents, remove percents, replace blanks, replace double points, change name..
     maxtype = max(dic_score, key=dic_score.get)
     print('-------------')   # show code to insert in the doc..
-    print('\t* ' + dic_prefix[maxtype])
-    print('\t+++ ' + os.getcwd().replace('/media/',''))
+    try:
+        print('\t* ' + dic_prefix[maxtype])
+        print('\t+++ ' + os.getcwd().replace('/media/',''))
+    except:
+        print('issue with dic_prefix')
     for ext in lext:
       for f in glob.glob('*.' + ext):
           line = make_line(f)
