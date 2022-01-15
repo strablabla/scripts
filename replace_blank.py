@@ -29,8 +29,11 @@ class REP():
     def find_type(self):
         '''
         '''
-        self.dic_type = {'pdf':'§§','mp4':'%%','avi':'%%','mp3':'%%','txt':',,'}
-        self.type = self.dic_type[self.name[-3:]]
+        self.dic_type = { 'pdf':'§§', 'djvu': '§§', 'mp4': '%%',
+                            'avi': '%%', 'm4v': '%%', 'mp3': '%%',
+                            'txt': ',,', 'jpg':'%' }
+        _, ext = ops( self.name )
+        self.type = self.dic_type[ ext[1:] ]
         #print("self.type ",self.type)
 
     def rm_brk(self):
@@ -46,7 +49,7 @@ class REP():
         '''
         Remove accents
         '''
-        drep = {'à':'a','é':'e','è':'e','É':'E', 'È':'E', 'ô':'o'}
+        drep = { 'à':'a','é':'e','è':'e','É':'E', 'È':'E', 'ô':'o' }
         for l in drep:
             self.name = self.name.replace(l,drep[l])
         return self
@@ -59,7 +62,7 @@ class REP():
         for k in self.dic_type.keys():
             dict_undrsc_type['_.' + k] = '.' + k
 
-        drep = {'%26':'','_-_':'_', '__':'_'}
+        drep = { '%26': '', '_-_': '_', '__': '_' }
         drep = dict(drep, **dict_undrsc_type)
         for l in drep:
             self.name = self.name.replace(l,drep[l])
@@ -69,28 +72,28 @@ class REP():
         '''
         Replace blanks
         '''
-        self.name = self.name.replace(' ','_')
+        self.name = self.name.replace( ' ', '_' )
         return self
 
     def rep_dbpts(self):
         '''
         Replace double points
         '''
-        self.name = self.name.replace(':','-')
+        self.name = self.name.replace( ':', '-' )
         return self
 
     def mk_blk(self):
         '''
         Replace blanks
         '''
-        self.name = self.name.replace('_',' ')
+        self.name = self.name.replace('_', ' ')
         return self
 
     def cut_beg(self):
         '''
         Clean the beginning of the name
         '''
-        a, b, c = re.split(r"(\w)", self.name, 1) #
+        a, b, c = re.split( r"(\w)", self.name, 1 ) #
         self.name = b+c
         return self
 
@@ -98,7 +101,7 @@ class REP():
         '''
         Remove extension
         '''
-        self.name = self.name[:-4]
+        self.name, ext = ops( self.name )
         return self
 
     def rm_expr(self):
@@ -113,11 +116,11 @@ class REP():
         '''
         Change from one name to another..
         '''
-        sh.move(self.name_orig,self.name)
+        sh.move( self.name_orig, self.name )
 
 #####
 
-def make_line(f):
+def make_line(f, debug=[]):
     '''
     '''
     # remove extension, make blanks, remove given expression, remove beginning not alphanum..
@@ -125,14 +128,20 @@ def make_line(f):
     newr = dict(r.__dict__,**r.args.__dict__)
     if newr['type'] == '**':
         newr['type'] = r.type
-    line = '[{name} {type}]({name_orig})'.format(**newr)
+
+    pref0='!' if newr['type'] == '%'  else ''
+    pref1='%' if newr['type'] == '%'  else ''
+    if 0 in debug:
+        print( f"newr['type'] { newr['type'] }" )
+        print( f"newr['name'] { newr['name'] }" )
+    line = f'{ pref0 }[{ pref1 } { newr["name"] } { newr["type"] }]( { newr["name_orig"] } )'
     return line
 
 def print_reflnk():
     '''
     '''
     try:
-        with open('ref.lnk','r') as g:
+        with open('ref.lnk', 'r') as g:
             lines = g.readlines()
             for l in lines:
                 print(l.strip())
@@ -161,9 +170,9 @@ def sort_by_date(l):
         if ( not extr ):
             lwithout_date.append(name)
         else:
-            lwith_date.append([dt.strptime(extr, "%Y-%m-%d"), name])
-    sorted_lwith_date = sorted(lwith_date, key = lambda x: x[1])    # sort on date the pairs (date,name)
-    sorted_list_name = [elem[1] for elem in sorted_lwith_date]      # extract the name
+            lwith_date.append( [ dt.strptime(extr, "%Y-%m-%d"), name ] )
+    sorted_lwith_date = sorted( lwith_date, key = lambda x: x[1] )              # sort on date the pairs (date,name)
+    sorted_list_name = [ elem[1] for elem in sorted_lwith_date ]                  # extract the name
     full_list = sorted_list_name  + lwithout_date
     return full_list
 
@@ -172,14 +181,32 @@ def find_num(s):
     s : string
     '''
     name, ext = ops(s)
-    return int(re.findall('\d+',name)[0])
+    try:
+        num = int( re.findall( '\d+', name)[0].lstrip('0') )
+        print(num)
+    except:
+        num = 0
+    return num
 
 def sort_by_num(l):
     '''
-
+    Sort the files with the number inside..useful for lessons for example..
     '''
-    sorted_with_num = sorted(l, key = lambda x: find_num(x))    # sort on date the pairs (date,name)
+    sorted_with_num = sorted( l, key = lambda x: find_num(x) )                    # sort on number,name
     return sorted_with_num
+
+def sort_with_arg(lfiles):
+    '''
+    '''
+    r = REP(lfiles[0])
+    if r.args.date:
+      lsorted = sort_by_date(lfiles)  # sort by date
+    elif r.args.num:
+      lsorted = sort_by_num(lfiles)   # sort by num
+    else:
+      lsorted = lfiles
+
+    return lsorted
 
 def rep():
     '''
@@ -188,33 +215,36 @@ def rep():
     '''
 
     #print('args is {} '.format(args))
-    lext = ['mp3','mp4', 'avi','pdf','jpg','txt'] # authorized extensions
-    dic_prefix = {'pdf':'$pdf' ,'mp4':'$vid', 'avi':'$vid', 'mp3':'$vid'}
-    dic_score = {'mp3':0, 'mp4':0, 'avi':0, 'pdf':0, 'jpg':0, 'txt':0}
+    lext = [ 'mp3', 'mp4', 'avi', 'm4v', 'pdf', 'djvu', 'jpg', 'txt' ] # authorized extensions
+    dic_prefix = { 'pdf': '$pdf' , 'djvu': '$pdf', 'mp4': '$vid',
+                    'avi': '$vid', 'm4v': '$vid', 'mp3': '$vid',
+                    'jpg': '$portf' }
+    dic_score = { 'mp3': 0, 'mp4': 0, 'avi': 0, 'm4v': 0, 'pdf': 0,
+                                'djvu': 0, 'jpg': 0, 'txt': 0 }
+    nbfiles = 0
     for ext in lext:
-      ll = sort_by_num(glob.glob(f'*.{ext}'))
-      for f in ll:
-        print(f)
-        dic_score[ext] += 1
-        r = REP(f).rm_brk().rm_acc().rm_patt().rep_blk().rep_dbpts().mv() # remove brackets, remove accents, remove patterns, replace blanks, replace double points, change name..
+        ll = glob.glob( f'*.{ ext }' )
+        for f in ll:
+            print(f)
+            dic_score[ext] += 1
+            '''
+            remove brackets, remove accents, remove patterns,
+             replace blanks, replace double points, change name..
+            '''
+            r = REP(f).rm_brk().rm_acc().rm_patt().rep_blk().rep_dbpts().mv()
+        nbfiles += len(ll)
+    print( f'nb of files is { nbfiles }')
     maxtype = max(dic_score, key=dic_score.get)
     print('-------------')   # show code to insert in the doc..
     try:
-        print('\t* ' + dic_prefix[maxtype])
-        print('\t+++ ' + os.getcwd().replace('/media/',''))
+        print( '\t* ' + dic_prefix[ maxtype ] )
+        print( '\t+++ ' + os.getcwd().replace('/media/', '') )
     except:
         print('issue with dic_prefix')
-
     for ext in lext:
-      lfiles = glob.glob(f'*.{ext}')
+      lfiles = glob.glob( f'*.{ ext }' )
       if lfiles:
-          r = REP(lfiles[0])
-          if r.args.date:
-              lsorted = sort_by_date(lfiles)  # sort by date
-          elif r.args.num:
-              lsorted = sort_by_num(lfiles)   # sort by num
-          else:
-              lsorted = lfiles
+          lsorted = sort_with_arg(lfiles)
           for f in lsorted:
               line = make_line(f)
               print('\t' + line)
