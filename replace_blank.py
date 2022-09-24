@@ -9,12 +9,20 @@ import argparse
 from datetime import datetime as dt
 
 
-class REP():
+class EXT():
+    '''
+    '''
+    def __init__(self):
+        self.lbad_ext = ['jpeg', 'JPEG', 'JPG', 'Jpg', 'Jpeg']
+
+
+class REP(EXT):
     '''
     Repare the line
     '''
 
     def __init__(self, name):
+        EXT.__init__(self)
         self.type = None
         self.name_orig = name      # original name
         self.name = name
@@ -34,7 +42,11 @@ class REP():
                          'avi': '%%', 'm4v': '%%', 'mp3': '%%',
                          'txt': ',,', 'jpg': '%'}
         _, ext = ops(self.name)
-        self.type = self.dic_type[ext[1:]]
+        try:
+            self.type = self.dic_type[ext[1:]]
+        except:
+            self.type = None
+
         #print("self.type ",self.type)
 
     def rm_brk(self):
@@ -63,8 +75,8 @@ class REP():
         for k in self.dic_type.keys():
             dict_undrsc_type['_.' + k] = '.' + k
 
-        drep = {'%26': '', '_-_': '_', '__': '_',
-                'Op.': 'Op', 'No.': 'No'}
+        drep = {'%26': '', '_-_': '_', '__': '_', '-_':'_', '_-': '_',
+                'Op.': 'Op', 'No.': 'No', '&':'_and_', 'z-lib.org':''}
         drep = dict(drep, **dict_undrsc_type)
         for l in drep:
             self.name = self.name.replace(l, drep[l])
@@ -99,6 +111,17 @@ class REP():
         self.name = b+c
         return self
 
+    def rep_ext(self):
+        '''
+        Replace extension
+        '''
+        root, ext = ops(self.name)
+        bad_exts = ['.' + ex for ex in self.lbad_ext]
+        print(f'bad_exts is {bad_exts}')
+        if ext in bad_exts:
+            self.name = self.name.replace(ext,'.jpg')
+        return self
+
     def rm_ext(self):
         '''
         Remove extension
@@ -131,13 +154,14 @@ class HANDLE_LINE():
 
     def make_line(self, f, debug=[]):
         '''
+        replace extension, remove extension, make blanks,
+        remove given expression, remove beginning not alphanum..
         '''
-        # remove extension, make blanks, remove given expression, remove beginning not alphanum..
+
         r = REP(f).rm_ext().mk_blk().rm_expr().cut_beg()
         newr = dict(r.__dict__, **r.args.__dict__)
         if newr['type'] == '**':
             newr['type'] = r.type
-
         pref0 = '!' if newr['type'] == '%' else ''
         pref1 = '%' if newr['type'] == '%' else ''
         if 0 in debug:
@@ -221,14 +245,14 @@ class HANDLE_LINE():
         return lsorted
 
 
-
-class CLEAN_AND_CODE_STRAP(HANDLE_LINE):
+class CLEAN_AND_CODE_STRAP(HANDLE_LINE, EXT):
     '''
     '''
 
     def __init__(self):
         '''
         '''
+        EXT.__init__(self)
         HANDLE_LINE.__init__(self)
 
         self.dic_prefix = {'pdf': '$pdf', 'djvu': '$pdf', 'mp4': '$vid',
@@ -239,6 +263,7 @@ class CLEAN_AND_CODE_STRAP(HANDLE_LINE):
         self.lext = ['mp3', 'mp4', 'avi', 'm4v',
                      'pdf', 'djvu', 'jpg', 'txt'] # authorized extensions
 
+
     def clean_names(self, ll, ext, debug=[]):
         '''
         Adapt the names to nodestrap syntax.
@@ -248,17 +273,24 @@ class CLEAN_AND_CODE_STRAP(HANDLE_LINE):
                 print(f)
             self.dic_score[ext] += 1
             '''
-            remove brackets, remove accents, remove patterns,
+            replace bad ext, remove brackets, remove accents, remove patterns,
              replace blanks, replace double points, change name..
             '''
             r = REP(f).rm_brk().rm_acc().rm_patt().rep_blk().rep_dbpts().mv()
 
+    def clean_extension(self, fold):
+        '''
+        '''
+        for ext in self.lbad_ext:
+            ll = glob.glob(f'{fold}*.{ext}')
+            for f in ll:
+                r = REP(f).rep_ext().mv()
+
     def list_and_clean(self, fold='', debug=[]):
         '''
         '''
-
         nbfiles = 0
-
+        self.clean_extension(fold)
         for ext in self.lext:
             ll = glob.glob(f'{fold}*.{ext}')
             self.clean_names(ll, ext)
